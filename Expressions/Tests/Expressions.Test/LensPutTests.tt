@@ -45,18 +45,6 @@ namespace NMF.Expressions.Test
     [TestClass]
     public class LensPutTests
     {
-        private Func<Dummy<int[]>, int> getter;
-        private Action<Dummy<int[]>, int> setter;
-
-        [TestInitialize]
-        public void CreateGetterAndSetter()
-        {
-            Expression<Func<Dummy<int[]>, int>> expression = dummy => dummy.Item.FirstOrDefault();
-
-            getter = expression.Compile();
-            var setExp = SetExpressionRewriter.CreateSetter(expression);
-            setter = setExp.Compile();
-        }
 
 <# 
 foreach (var testOption in new[] { 
@@ -65,15 +53,29 @@ foreach (var testOption in new[] {
     new {name = "InitializedArray", array = "new int[] { 0, 8, 15 }" }
 } ){
 #>
+        #region <#= testOption.name #> tests
+<#
+    for(int i=1;i<=9;i++)
+    {
+#>        
+        #region <#= testOption.name #> tests with <#= i #> parameters
+        
         [TestMethod]
-        public void PutGetFor<#= testOption.name #>()
+        public void PutGetFor<#= testOption.name #>Param<#= i #>()
         {
-            var dummy = new ObservableDummy<int[]>(<#= testOption.array #>);
-            var test = Observable.Reversable(() => dummy.Item.FirstOrDefault());
+<# 
+        for(int j=1;j<=i;j++)
+        {
+#>
+            var dummy<#= j #> = new ObservableDummy<int[]>(<#= testOption.array #>);
+<#
+        }
+#>
+            var test = Observable.Reversable(() => dummy<#= i #>.Item.FirstOrDefault());
 
             Assert.AreEqual(0, test.Value);
             test.Value = 42;
-            Assert.AreEqual(42, dummy.Item[0]);
+            Assert.AreEqual(42, dummy<#= i #>.Item[0]);
 <#  if(testOption.name == "InitializedArray")
 {
 #>
@@ -91,27 +93,41 @@ foreach (var testOption in new[] {
         }
 
         [TestMethod]
-        public void GetPutFor<#= testOption.name #>()
+        public void GetPutFor<#= testOption.name #>Param<#= i #>()
+        {            
+<# 
+        for(int j=1;j<=i;j++)
         {
-            int[] array = <#= testOption.array #>;
-            var dummy = new Dummy<int[]>(array);
-            var test = Observable.Reversable(() => dummy.Item.FirstOrDefault());
+#>
+            int[] array<#= j #> = <#= testOption.array #>;
+            var dummy<#= j #> = new Dummy<int[]>(array<#= j #>);
+<#
+        }
+#>
+            var test = Observable.Reversable(() => dummy<#= i #>.Item.FirstOrDefault());
 
             Assert.AreEqual(0, test.Value);
             test.Value = 0;
-            Assert.AreEqual(array, dummy.Item);
+            Assert.AreEqual(array<#= i #>, dummy<#= i #>.Item);
         }
         
         [TestMethod]
-        public void PutGetFor<#= testOption.name #>WithFunc()
+        public void PutGetFor<#= testOption.name #>WithFuncParam<#= i #>()
         {
-            var dummy = new ObservableDummy<int[]>(<#= testOption.array #>);
-            var func = Observable.Func<Dummy<int[]>, int>(d => d.Item.FirstOrDefault());
-            var test = func.InvokeReversable(dummy);
+<# 
+        for(int j=1;j<=i;j++)
+        {
+#>
+            var dummy<#= j #> = new ObservableDummy<int[]>(<#= testOption.array #>);
+<#
+        }
+#>
+            var func = Observable.Func<<#= Interpolate("Dummy<int[]>", ", ", i) #>, int> ((<#= Interpolate("d{0}", ", ", i) #>) => d<#= i #>.Item.FirstOrDefault());
+            var test = func.InvokeReversable(<#= Interpolate("dummy{0}", ", ", i) #>);
 
             Assert.AreEqual(0, test.Value);
             test.Value = 42;
-            Assert.AreEqual(42, dummy.Item[0]);
+            Assert.AreEqual(42, dummy<#= i #>.Item[0]);
 <#  if(testOption.name == "InitializedArray")
 {
 #>
@@ -129,42 +145,90 @@ foreach (var testOption in new[] {
         }
 
         [TestMethod]
-        public void GetPutFor<#= testOption.name #>WithFunc()
+        public void GetPutFor<#= testOption.name #>WithFuncParam<#= i #>()
         {
-            int[] array = <#= testOption.array #>;
-            var dummy = new Dummy<int[]>(array);
-            var func = Observable.Func<Dummy<int[]>, int>(d => d.Item.FirstOrDefault());
-            var test = func.InvokeReversable(dummy);
+<# 
+        for(int j=1;j<=i;j++)
+        {
+#>
+            int[] array<#= j #> = <#= testOption.array #>;
+            var dummy<#= j #> = new Dummy<int[]>(array<#= j #>);
+<#
+        }
+#>            
+            var func = Observable.Func<<#= Interpolate("Dummy<int[]>", ", ", i) #>, int> ((<#= Interpolate("d{0}", ", ", i) #>) => d<#= i #>.Item.FirstOrDefault());
+            var test = func.InvokeReversable(<#= Interpolate("dummy{0}", ", ", i) #>);
 
             Assert.AreEqual(0, test.Value);
             test.Value = 0;
-            Assert.AreEqual(array, dummy.Item);
+            Assert.AreEqual(array<#= i #>, dummy<#= i #>.Item);
         }
 
         [TestMethod]
-        public void PutGetForCompiled<#= testOption.name #>()
+        public void PutGetForCompiled<#= testOption.name #>Param<#= i #>()
         {
-            var dummy = new Dummy<int[]>(<#= testOption.array #>);
+            Func<<#= Interpolate("Dummy<int[]>", ", ", i) #>, int> getter;
+            Action<<#= Interpolate("Dummy<int[]>", ", ", i) #>, int> setter;
 
-            Assert.AreEqual(0, getter(dummy));
-            setter(dummy, 42);
-            Assert.AreEqual(42, dummy.Item[0]);
-            Assert.AreEqual(42, getter(dummy));
+            Expression<Func<<#= Interpolate("Dummy<int[]>", ", ", i) #>, int>> expression = (<#= Interpolate("d{0}", ", ", i) #>) => d<#= i #>.Item.FirstOrDefault();
+
+            getter = expression.Compile();
+            var setExp = SetExpressionRewriter.CreateSetter(expression);
+            setter = (Action<<#= Interpolate("Dummy<int[]>", ", ", i) #> , int>) setExp.Compile();
+<# 
+        for(int j=1;j<=i;j++)
+        {
+#>
+            var dummy<#= j #> = new Dummy<int[]>(<#= testOption.array #>);
+<#
+        }
+#>
+
+            Assert.AreEqual(0, getter(<#= Interpolate("dummy{0}", ", ", i) #>));
+            setter(<#= Interpolate("dummy{0}", ", ", i) #> , 42);
+            Assert.AreEqual(42, dummy<#= i #>.Item[0]);
+            Assert.AreEqual(42, getter(<#= Interpolate("dummy{0}", ", ", i) #>));
         }
         
         [TestMethod]
-        public void GetPutForCompiled<#= testOption.name #>()
+        public void GetPutForCompiled<#= testOption.name #>Param<#= i #>()
         {
-            int[] array = <#= testOption.array #>;
-            var dummy = new Dummy<int[]>(array);
+            Func<<#= Interpolate("Dummy<int[]>", ", ", i) #>, int> getter;
+            Action<<#= Interpolate("Dummy<int[]>", ", ", i) #>, int> setter;
 
-            Assert.AreEqual(0, getter(dummy));
-            setter(dummy, 0);
-            Assert.AreEqual(array, dummy.Item);
+            Expression<Func<<#= Interpolate("Dummy<int[]>", ", ", i) #>, int>> expression =(<#= Interpolate("d{0}", ", ", i) #>) => d<#= i #>.Item.FirstOrDefault();
+
+            getter = expression.Compile();
+            var setExp = SetExpressionRewriter.CreateSetter(expression);
+            setter = (Action<<#= Interpolate("Dummy<int[]>", ", ", i) #> , int>) setExp.Compile();
+<# 
+        for(int j=1;j<=i;j++)
+        {
+#>
+            int[] array<#= j #> = <#= testOption.array #>;
+            var dummy<#= j #> = new Dummy<int[]>(array<#= j #>);
+<#
+        }
+#>            
+
+            Assert.AreEqual(0, getter(<#= Interpolate("dummy{0}", ", ", i) #>));
+            setter(<#= Interpolate("dummy{0}", ", ", i) #>, 0);
+            Assert.AreEqual(array<#= i #>, dummy<#= i #>.Item);
         }
 
+        #endregion
+<#
+    }
+#>
+        #endregion
 <#
 }
 #>
     }
 }
+
+<#+
+    public string Interpolate(string str, string separator, int i){
+        return String.Join(separator,Enumerable.Range(1, i).Select(x => String.Format(str, x)));
+    }    
+#>
